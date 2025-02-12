@@ -99,6 +99,9 @@ class ChatWidget {
         border-radius: 4px;
         cursor: pointer;
       }
+      .chat-widget-send:hover {
+        opacity: 0.9;
+      }
       .chat-message {
         display: flex;
         align-items: flex-start;
@@ -106,13 +109,17 @@ class ChatWidget {
         animation: chatFadeIn 0.3s ease-out;
       }
       .chat-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
         margin-right: 8px;
         flex-shrink: 0;
+        overflow: hidden;
       }
       .chat-content {
         background: white;
-        padding: 8px;
-        border-radius: 4px;
+        padding: 8px 12px;
+        border-radius: 8px;
         max-width: 80%;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
       }
@@ -120,26 +127,46 @@ class ChatWidget {
         font-weight: bold;
         font-size: 0.9em;
         margin-bottom: 4px;
+        color: ${this.options.buttonColor};
       }
       .chat-text {
         word-break: break-word;
+        line-height: 1.4;
       }
       @keyframes chatFadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
       }
+      /* Scrollbar Styles */
+      .chat-widget-messages::-webkit-scrollbar {
+        width: 6px;
+      }
+      .chat-widget-messages::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      .chat-widget-messages::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+      }
+      .chat-widget-messages::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
     `;
 
-    const styleSheet = document.createElement('style');
-    styleSheet.textContent = styles;
-    document.head.appendChild(styleSheet);
+    if (!document.getElementById('chat-widget-styles')) {
+      const styleSheet = document.createElement('style');
+      styleSheet.id = 'chat-widget-styles';
+      styleSheet.textContent = styles;
+      document.head.appendChild(styleSheet);
+    }
   }
 
   createElements() {
+    // Create container
     this.container = document.createElement('div');
     this.container.className = 'chat-widget-container';
 
-    // Chat toggle button
+    // Create toggle button
     this.button = document.createElement('div');
     this.button.className = 'chat-widget-button';
     this.button.innerHTML = `
@@ -148,29 +175,50 @@ class ChatWidget {
       </svg>
     `;
 
-    // Chat panel
+    // Create chat panel
     this.panel = document.createElement('div');
     this.panel.className = 'chat-widget-panel';
-    
-    this.panel.innerHTML = `
-      <div class="chat-widget-header">
-        <span>Chat Room</span>
-        <span class="chat-widget-close">✕</span>
-      </div>
-      <div class="chat-widget-messages"></div>
-      <div class="chat-widget-input-container">
-        <input type="text" class="chat-widget-input" placeholder="Type a message...">
-        <button class="chat-widget-send">Send</button>
-      </div>
+
+    // Create header
+    const header = document.createElement('div');
+    header.className = 'chat-widget-header';
+    header.innerHTML = `
+      <span>Chat Room</span>
+      <span class="chat-widget-close">✕</span>
     `;
+
+    // Create messages container
+    this.messagesContainer = document.createElement('div');
+    this.messagesContainer.className = 'chat-widget-messages';
+
+    // Create input container
+    const inputContainer = document.createElement('div');
+    inputContainer.className = 'chat-widget-input-container';
+
+    // Create input field
+    this.input = document.createElement('input');
+    this.input.type = 'text';
+    this.input.className = 'chat-widget-input';
+    this.input.placeholder = 'Type a message...';
+
+    // Create send button
+    this.sendButton = document.createElement('button');
+    this.sendButton.className = 'chat-widget-send';
+    this.sendButton.textContent = 'Send';
+
+    // Assemble the components
+    inputContainer.appendChild(this.input);
+    inputContainer.appendChild(this.sendButton);
+
+    this.panel.appendChild(header);
+    this.panel.appendChild(this.messagesContainer);
+    this.panel.appendChild(inputContainer);
 
     this.container.appendChild(this.panel);
     this.container.appendChild(this.button);
-    document.body.appendChild(this.container);
 
-    this.messagesContainer = this.panel.querySelector('.chat-widget-messages');
-    this.input = this.panel.querySelector('.chat-widget-input');
-    this.sendButton = this.panel.querySelector('.chat-widget-send');
+    // Add to document
+    document.body.appendChild(this.container);
   }
 
   setupEventListeners() {
@@ -218,16 +266,18 @@ class ChatWidget {
     const messageElement = document.createElement('div');
     messageElement.className = 'chat-message';
 
-    const initial = data.username ? data.username.charAt(0).toUpperCase() : '?';
+    const avatarUrl = `https://images.websim.ai/avatar/${data.username}`;
     
     messageElement.innerHTML = `
-      <div class="chat-avatar">
-        <svg width="30" height="30">
-          <circle cx="15" cy="15" r="14" fill="${this.options.buttonColor}"/>
-          <text x="15" y="15" text-anchor="middle" fill="white" 
-                font-size="14" font-family="Arial" dy=".3em">${initial}</text>
-        </svg>
-      </div>
+      <img class="chat-avatar" src="${avatarUrl}" 
+           onerror="this.src='data:image/svg+xml,${encodeURIComponent(`
+             <svg width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+               <circle cx="16" cy="16" r="16" fill="${this.options.buttonColor}"/>
+               <text x="16" y="16" text-anchor="middle" fill="white" 
+                     font-size="16" font-family="Arial" dy=".3em">${data.username ? data.username[0].toUpperCase() : '?'}</text>
+             </svg>
+           `)}'"
+      >
       <div class="chat-content">
         <div class="chat-username">${data.username || 'Anonymous'}</div>
         <div class="chat-text">${this.escapeHtml(data.message)}</div>
@@ -250,3 +300,11 @@ class ChatWidget {
 
 // Export the class
 window.ChatWidget = ChatWidget;
+
+// Usage example:
+// const chat = new ChatWidget({
+//   position: 'bottom-right', // or 'bottom-left', 'top-right', 'top-left'
+//   buttonColor: '#007BFF',
+//   chatWidth: '300px',
+//   chatHeight: '400px'
+// });

@@ -1,0 +1,199 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realtime Lobby Chat</title>
+  <style>
+    /* Basic reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: linear-gradient(135deg, #ece9e6, #ffffff);
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 800px;
+      height: 90vh;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      overflow: hidden;
+      background-color: #f9f9f9;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    #chat-messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      background: #fff;
+    }
+    #chat-input-container {
+      display: flex;
+      border-top: 1px solid #ccc;
+      padding: 10px;
+      background-color: #f1f1f1;
+    }
+    #chat-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    #send-button {
+      margin-left: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #007BFF;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #send-button:hover {
+      background-color: #0056b3;
+    }
+    .chat-message {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 15px;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .avatar {
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+    .message-content {
+      background-color: #e1f0ff;
+      padding: 10px;
+      border-radius: 6px;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+    .message-header {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .message-text {
+      font-size: 15px;
+      line-height: 1.4;
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="chat-container">
+    <div id="chat-messages">
+      <!-- Chat messages will appear here -->
+    </div>
+    <div id="chat-input-container">
+      <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off">
+      <button id="send-button">Send</button>
+    </div>
+  </div>
+
+  <script>
+    // Initialize the WebsimSocket room connection.
+    const room = new WebsimSocket();
+
+    // Function to add a message to the chat window.
+    function addMessage(data) {
+      const chatMessages = document.getElementById('chat-messages');
+      const messageElement = document.createElement('div');
+      messageElement.className = 'chat-message';
+
+      // Create an avatar using inline SVG with the first letter of the username.
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      const initial = data.username ? data.username.charAt(0).toUpperCase() : '?';
+      avatar.innerHTML = `
+        <svg width="40" height="40">
+          <circle cx="20" cy="20" r="18" fill="#007BFF" />
+          <text x="20" y="25" text-anchor="middle" fill="#fff" font-size="20" font-family="Arial" dy=".3em">${initial}</text>
+        </svg>
+      `;
+
+      // Create content container for username and message text.
+      const content = document.createElement('div');
+      content.className = 'message-content';
+
+      const header = document.createElement('div');
+      header.className = 'message-header';
+      header.textContent = data.username || 'Anonymous';
+
+      const text = document.createElement('div');
+      text.className = 'message-text';
+      text.textContent = data.message;
+
+      content.appendChild(header);
+      content.appendChild(text);
+
+      messageElement.appendChild(avatar);
+      messageElement.appendChild(content);
+
+      chatMessages.appendChild(messageElement);
+      // Auto-scroll to the latest message.
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Listen for incoming messages from the server.
+    room.onmessage = (event) => {
+      const data = event.data;
+      if (data.type === 'chat') {
+        addMessage(data);
+      }
+      // You can handle other event types here (e.g., connected/disconnected) if needed.
+    };
+
+    // Function to send a chat message.
+    function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const message = input.value.trim();
+      if (!message) return;
+
+      // Send the chat message event.
+      room.send({
+        type: 'chat',
+        message: message
+      });
+
+      // The default behavior is to echo your message back.
+      input.value = '';
+    }
+
+    // Event listeners for the send button and Enter key.
+    document.getElementById('send-button').addEventListener('click', sendMessage);
+    document.getElementById('chat-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+
+    // For debugging: Log the client info and subscribe to peer updates.
+    console.log('Connected as:', room.party.client);
+    room.party.subscribe((peers) => {
+      console.log('Updated peers:', peers);
+    });
+  </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
